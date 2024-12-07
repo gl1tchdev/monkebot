@@ -61,9 +61,6 @@ async def welcome_no_button(
 ):
     await bot.send_message(message.chat.id, 'направил заявку администратору')
 
-async def debug(message: Message):
-    print(message)
-
 
 @inject
 def init(
@@ -77,4 +74,3 @@ def init(
         text=TextFilter(equals=no_button_text, ignore_case=True)
     )
     bot.register_message_handler(welcome_yes_button_get_comment, is_reply=True)
-    #aabot.register_message_handler(debug, func=lambda message: True)

@@ -33,21 +33,19 @@ async def startup(
 
 async def main():
 	global db_container, http_container, tg_container
-	db_container.init_resources()
-	db_container.wire(
-		modules=[
-			__name__,
-			'core.handlers.welcome'
-		])
-
-	http_container.init_resources()
-	http_container.wire(modules=[__name__])
-
-	tg_container.init_resources()
-	tg_container.wire(modules=[
+	wiring_list = [
 		__name__,
 		'core.handlers.welcome'
-	])
+	]
+
+	db_container.init_resources()
+	db_container.wire(modules=wiring_list)
+
+	http_container.init_resources()
+	http_container.wire(modules=wiring_list)
+
+	tg_container.init_resources()
+	tg_container.wire(modules=wiring_list)
 
 	await startup()
 
