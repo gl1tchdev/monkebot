@@ -12,7 +12,9 @@ class Users(Base):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column()
-    is_verified: Mapped[bool] = mapped_column(default=False)
+    first_name: Mapped[str] = mapped_column(nullable=True)
+    last_name: Mapped[str] = mapped_column(nullable=True)
+    is_registered: Mapped[bool] = mapped_column(default=False)
     is_admin: Mapped[bool] = mapped_column(default=False)
     comment: Mapped[str] = mapped_column(nullable=True)
     chat_id: Mapped[int] = mapped_column()
@@ -21,14 +23,16 @@ class Users(Base):
     async def create(
         cls,
         username: str,
+        first_name: str,
+        last_name: str,
         chat_id: int,
         session: AsyncSession,
-        comment: str = None,
-        is_admin: bool = False,
-        is_verified: bool = False
+        comment: str = None
     ):
         user = cls(
             username=username,
+            first_name=first_name,
+            last_name=last_name,
             chat_id=chat_id,
             comment=comment,
         )
@@ -70,7 +74,17 @@ class Messages(Base):
         )
         session.add(message)
         await session.flush()
+        return message
 
+
+class DatabaseContext:
+    def __init__(
+        self,
+        user_model: Users,
+        message_model: Messages,
+    ):
+        self.user_model = user_model
+        self.message_model = message_model
 
 
 async def init_db(engine: AsyncEngine):
