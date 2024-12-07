@@ -1,24 +1,22 @@
+from dependency_injector import containers, providers
+from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, create_async_engine
+from sqlalchemy.orm import sessionmaker
 from config import Config
 
-from dependency_injector import containers, providers
-from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
-
-
 class DatabaseContainer(containers.DeclarativeContainer):
-    engine: AsyncEngine = providers.Singleton(
+    engine: providers.Singleton[AsyncEngine] = providers.Singleton(
         create_async_engine,
-        Config.SQLITE_DSN
+        url=Config.PG_DSN
     )
-    session_maker: async_sessionmaker = providers.Factory(
-        async_sessionmaker,
+    session_factory: providers.Factory[sessionmaker] = providers.Factory(
+        sessionmaker,
         bind=engine,
-        expire_on_commit=False
+        class_=AsyncSession,
+        expire_on_commit=False,
     )
-
-    session = providers.Resource(
-        lambda session_maker: session_maker(),
-        session_maker=session_maker
+    session: providers.Resource[AsyncSession] = providers.Resource(
+        lambda session_factory: session_factory(),
+        session_factory=session_factory,
     )
-
 
 db_container = DatabaseContainer()
