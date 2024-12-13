@@ -1,8 +1,8 @@
-from telebot.custom_filters import SimpleCustomFilter
-from telebot.types import Message
+from telebot.asyncio_filters import SimpleCustomFilter
+from core.middleware import ExtendedMessage
 
-class IsAdmin(SimpleCustomFilter):
-    key='is_admin'
+class IsBotAdmin(SimpleCustomFilter):
+    key='is_bot_admin'
     @staticmethod
-    def check(message: Message):
-        pass
+    def check(message: ExtendedMessage):
+        return message.context.user_model.is_admin

@@ -2,12 +2,14 @@ from asyncio import run
 from dependency_injector.wiring import inject, Provide
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_filters import TextMatchFilter, IsReplyFilter
-from telebot import apihelper
+from telebot import apihelper, logger
 from db.models import init_db
 from db.dependency import DatabaseContainer, db_container, AsyncEngine
 from web.dependency import http_container
-from core.middleware import DbMiddleware
-from core.handlers.welcome import init as welcome_init
+from core.middleware import DbModelsToMessageMiddleware
+from core.filter import IsBotAdmin
+from core.modules.welcome import init_module as welcome_init
+from core.modules.admin import init_module as admin_init
 from core.dependency import TelegramContainer, tg_container
 
 
@@ -20,22 +22,26 @@ async def startup(
 	await init_db(engine)
 
 	apihelper.ENABLE_MIDDLEWARE = True
-	bot.setup_middleware(DbMiddleware())
+	bot.setup_middleware(DbModelsToMessageMiddleware())
 
 	bot.add_custom_filter(IsReplyFilter())
 	bot.add_custom_filter(TextMatchFilter())
+	bot.add_custom_filter(IsBotAdmin())
 
 
 	welcome_init()
+	admin_init()
 
 	await bot.polling()
 
 
 async def main():
-	global db_container, http_container, tg_container
+	global db_container, http_container, tg_container, wiring_list
+
 	wiring_list = [
 		__name__,
-		'core.handlers.welcome'
+		'core.modules.welcome',
+		'core.modules.admin'
 	]
 
 	db_container.init_resources()

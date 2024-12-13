@@ -12,29 +12,23 @@ class Users(Base):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column()
-    first_name: Mapped[str] = mapped_column(nullable=True)
-    last_name: Mapped[str] = mapped_column(nullable=True)
+    full_name: Mapped[str] = mapped_column(nullable=True)
     is_registered: Mapped[bool] = mapped_column(default=False)
     is_admin: Mapped[bool] = mapped_column(default=False)
-    comment: Mapped[str] = mapped_column(nullable=True)
     chat_id: Mapped[int] = mapped_column()
 
     @classmethod
     async def create(
         cls,
         username: str,
-        first_name: str,
-        last_name: str,
+        full_name: str,
         chat_id: int,
         session: AsyncSession,
-        comment: str = None
     ):
         user = cls(
             username=username,
-            first_name=first_name,
-            last_name=last_name,
-            chat_id=chat_id,
-            comment=comment,
+            full_name=full_name,
+            chat_id=chat_id
         )
         session.add(user)
         await session.flush()
@@ -49,6 +43,12 @@ class Users(Base):
     ):
         query = select(cls).where(cls.chat_id == chat_id)
         return (await session.execute(query)).scalar_one_or_none()
+
+    @classmethod
+    async def get_admins(cls, session: AsyncSession):
+        query = select(cls).where(cls.is_admin.is_(True))
+        return (await session.execute(query)).scalars().all()
+
 
 
 class Messages(Base):
@@ -77,14 +77,15 @@ class Messages(Base):
         return message
 
 
-class DatabaseContext:
+class MessageDbContext:
     def __init__(
         self,
         user_model: Users,
-        message_model: Messages,
+        message_model: Messages | None = None,
     ):
         self.user_model = user_model
-        self.message_model = message_model
+        if message_model is not None:
+            self.message_model = message_model
 
 
 async def init_db(engine: AsyncEngine):
