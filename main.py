@@ -2,16 +2,15 @@ from asyncio import run
 from dependency_injector.wiring import inject, Provide
 from telebot.async_telebot import AsyncTeleBot
 from telebot.asyncio_filters import TextMatchFilter, IsReplyFilter
-from telebot import apihelper, logger
+from telebot import apihelper
 from db.models import init_db
 from db.dependency import DatabaseContainer, db_container, AsyncEngine
-from web.dependency import http_container
 from core.middleware import DbModelsToMessageMiddleware
-from core.filter import IsBotAdmin
-from core.modules.welcome import init_module as welcome_init
-from core.modules.admin import init_module as admin_init
+from core.filters.role import IsAdmin, IsOwner, IsRegistered, IsUnregistered, IsRejected
+from core.modules.register import init_module as welcome_init
+from core.modules.register_callback import init_module as register_callback_init
 from core.dependency import TelegramContainer, tg_container
-
+from web.dependency import http_container, HTTPContainer
 
 
 @inject
@@ -22,17 +21,25 @@ async def startup(
 	await init_db(engine)
 
 	apihelper.ENABLE_MIDDLEWARE = True
+	apihelper.SESSION_TIME_TO_LIVE = 5 * 60
+
 	bot.setup_middleware(DbModelsToMessageMiddleware())
 
 	bot.add_custom_filter(IsReplyFilter())
 	bot.add_custom_filter(TextMatchFilter())
-	bot.add_custom_filter(IsBotAdmin())
+
+	bot.add_custom_filter(IsAdmin())
+	bot.add_custom_filter(IsOwner())
+	bot.add_custom_filter(IsRegistered())
+	bot.add_custom_filter(IsUnregistered())
+	bot.add_custom_filter(IsRejected())
+
 
 
 	welcome_init()
-	admin_init()
+	register_callback_init()
 
-	await bot.polling()
+	await bot.infinity_polling()
 
 
 async def main():
@@ -40,8 +47,8 @@ async def main():
 
 	wiring_list = [
 		__name__,
-		'core.modules.welcome',
-		'core.modules.admin'
+		'core.modules.register',
+		'core.modules.register_callback'
 	]
 
 	db_container.init_resources()

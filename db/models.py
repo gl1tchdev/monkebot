@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
@@ -8,13 +9,28 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserRole(str, Enum):
+    unregistered = "unregistered"
+    registered = "registered"
+    rejected = "rejected"
+    admin = "admin"
+    owner = "owner"
+
+
+class RegisterStatus(str, Enum):
+    pending = "pending"
+    approved = "approved"
+    rejected = "rejected"
+
+
+
+
 class Users(Base):
     __tablename__ = 'users'
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column()
     full_name: Mapped[str] = mapped_column(nullable=True)
-    is_registered: Mapped[bool] = mapped_column(default=False)
-    is_admin: Mapped[bool] = mapped_column(default=False)
+    role: Mapped[UserRole] = mapped_column(default=UserRole.unregistered)
     chat_id: Mapped[int] = mapped_column()
 
     @classmethod
@@ -46,8 +62,13 @@ class Users(Base):
 
     @classmethod
     async def get_admins(cls, session: AsyncSession):
-        query = select(cls).where(cls.is_admin.is_(True))
+        query = select(cls).where(cls.role == UserRole.admin)
         return (await session.execute(query)).scalars().all()
+
+    @classmethod
+    async def get_by_id(cls, user_id: int, session: AsyncSession):
+        query = select(cls).where(cls.id == user_id)
+        return (await session.execute(query)).scalar_one_or_none()
 
 
 
@@ -75,6 +96,43 @@ class Messages(Base):
         session.add(message)
         await session.flush()
         return message
+
+
+class RegisterRequests(Base):
+    __tablename__ = 'register_requests'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id'))
+    status: Mapped[RegisterStatus] = mapped_column(default=RegisterStatus.pending)
+    created_at: Mapped[datetime] = mapped_column(default=datetime.now)
+    processed_at: Mapped[datetime] = mapped_column(nullable=True)
+
+    @classmethod
+    async def create(
+        cls,
+        user_id: int,
+        session: AsyncSession
+    ):
+        model = cls(user_id=user_id)
+        session.add(model)
+        await session.flush()
+        return model
+
+    @classmethod
+    async def exists_pending(
+        cls,
+        user_id: int,
+        session: AsyncSession
+    ):
+        query = select(cls).where(cls.user_id == user_id, cls.status == RegisterStatus.pending)
+        result = (await session.execute(query)).all()
+
+        return len(result) > 0
+
+    @classmethod
+    async def get_by_id(cls, request_id: int, session: AsyncSession):
+        query = select(cls).where(cls.id == request_id)
+
+        return (await session.execute(query)).scalar_one_or_none()
 
 
 class MessageDbContext:
